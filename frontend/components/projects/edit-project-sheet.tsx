@@ -129,10 +129,24 @@ export default function EditProjectSheet({ open, onOpenChange, project, onSubmit
     (Object.keys(formData) as Array<keyof typeof formData>).forEach((key) => {
       const newValue = formData[key];
       const oldValue = initialFormData[key];
-       if (newValue !== oldValue && newValue !== null) {
-        (changes as any)[key] = newValue;
+      //  if (newValue !== oldValue && newValue !== null) {
+      // if ((newValue ?? '') !== (oldValue ?? '')) {
+      //   (changes as any)[key] = newValue;
+      //   console.log('Detected changes:', changes);
+      // }
+      const normalizedNew = newValue ?? '';
+      const normalizedOld = oldValue ?? '';
+
+      if (normalizedNew !== normalizedOld) {
+        // (changes as any)[key] = newValue;
+        changes[key] = newValue;
       }
     });
+    
+    console.log("🔍 Diffing:");
+    console.log("formData:", formData);
+    console.log("initialFormData:", initialFormData);
+    console.log("changes to send:", changes);
 
     if (Object.keys(changes).length === 0) {
       // toast.info('No changes to save.');
@@ -143,6 +157,7 @@ export default function EditProjectSheet({ open, onOpenChange, project, onSubmit
     setIsSubmitting(true);
     try {
       await onSubmit(project.id, changes);
+      setInitialFormData({ ...formData });
       onOpenChange(false);
       toast.success('Project updated successfully!');
     } catch (error) {
@@ -330,7 +345,12 @@ export default function EditProjectSheet({ open, onOpenChange, project, onSubmit
                   <Label>Search Engine</Label>
                   <Select
                     value={formData.search_engine}
-                    onValueChange={(value: 'Google' | 'Bing' | 'Yahoo') => handleSelectChange('search_engine', value)}
+                    // onValueChange={(value: 'Google' | 'Bing' | 'Yahoo') => handleSelectChange('search_engine', value)}
+                    onValueChange={(value: 'Google' | 'Bing' | 'Yahoo') => {
+                      if (formData.search_engine !== value) {
+                        handleSelectChange('search_engine', value);
+                      }
+                    }}
                     disabled={isSubmitting || !canEditProject}
                   >
                     <SelectTrigger>
@@ -348,7 +368,12 @@ export default function EditProjectSheet({ open, onOpenChange, project, onSubmit
                   <Label>Target Region</Label>
                   <Select
                     value={formData.target_region}
-                    onValueChange={(value) => handleSelectChange('target_region', value)}
+                    // onValueChange={(value) => handleSelectChange('target_region', value)}
+                    onValueChange={(value) => {
+                      if (formData.target_region !== value) {
+                        handleSelectChange('target_region', value);
+                      }
+                    }}
                     disabled={isSubmitting || !canEditProject}
                   >
                     <SelectTrigger>
@@ -369,7 +394,12 @@ export default function EditProjectSheet({ open, onOpenChange, project, onSubmit
                 <Label>Language</Label>
                 <Select
                   value={formData.language}
-                  onValueChange={(value) => handleSelectChange('language', value)}
+                  // onValueChange={(value) => handleSelectChange('language', value)}
+                  onValueChange={(value) => {
+                    if (formData.language !== value) {
+                      handleSelectChange('language', value);
+                    }
+                  }}
                   disabled={isSubmitting || !canEditProject}
                 >
                   <SelectTrigger>
@@ -389,7 +419,7 @@ export default function EditProjectSheet({ open, onOpenChange, project, onSubmit
                 </Label>
                 <Switch
                   id="is_paused"
-                  checked={formData.is_paused}
+                  checked={!!formData.is_paused}
                   onCheckedChange={(checked) => handleSwitchChange('is_paused', checked)}
                   disabled={isSubmitting || !canEditProject}
                 />
@@ -528,7 +558,12 @@ export default function EditProjectSheet({ open, onOpenChange, project, onSubmit
                                       </AlertDialogHeader>
                                       <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteEntry(entry)}>
+                                        {/* <AlertDialogAction onClick={() => handleDeleteEntry(entry)}> */}
+                                        <AlertDialogAction
+                                          onClick={async () => {
+                                            await handleDeleteEntry(entry);
+                                          }}
+                                        >
                                           Remove
                                         </AlertDialogAction>
                                       </AlertDialogFooter>

@@ -44,11 +44,14 @@ export default function ProjectsPage() {
   // Filter projects based on search term
   const filteredProjects = useMemo(() => {
     if (!Array.isArray(projects)) return [];
+
+    const list = [...projects]; // clone
+    list.sort((a, b) => a.id - b.id);
     
-    if (!searchTerm.trim()) return projects;
+    if (!searchTerm.trim()) return list;
     
     const searchLower = searchTerm.toLowerCase();
-    return projects.filter((project) =>
+    return list.filter((project) =>
       project.name.toLowerCase().includes(searchLower) ||
       project.url.toLowerCase().includes(searchLower) ||
       project.description?.toLowerCase().includes(searchLower)
@@ -211,6 +214,7 @@ export default function ProjectsPage() {
               {filteredProjects.map((project) => (
                 <ProjectCard
                   key={project.id}
+                  // key={`project-${project.id}-${project.is_paused}`}
                   project={project}
                   onEdit={handleEditProject}
                   onDelete={handleDeleteProject}
