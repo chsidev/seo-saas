@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+passlib==1.7.4
+bcrypt==4.0.1
+python-jose
+python-dotenv
+psycopg2-binary
+redis
+celery
+sqlalchemy
+pydantic[email]
+httpx
+stripe
+itsdangerous
+alembic
+pydantic
