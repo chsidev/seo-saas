@@ -74,12 +74,12 @@ def list_projects(db: Session = Depends(get_db), user=Depends(get_current_user))
         })
     return result
 
-@router.get("/{project_id}")
 # def get_project(project_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
 #     project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.owner_id == user.id).first()
 #     if not project:
 #         raise HTTPException(status_code=404, detail="Not found")
 #     return project
+@router.get("/{project_id}", response_model=schemas.ProjectDetailOut)
 def get_project(project_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:

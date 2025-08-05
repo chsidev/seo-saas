@@ -14,3 +14,6 @@ stripe
 itsdangerous
 alembic
 pydantic
+urllib3
+beautifulsoup4
+bs4

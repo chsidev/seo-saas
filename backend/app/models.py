@@ -70,7 +70,7 @@ class Project(Base):
     search_engine = Column(Enum(SearchEngine), default=SearchEngine.GOOGLE)
     target_region = Column(String, default="global")
     language = Column(String, default="en")
-    is_paused = Column(Boolean, default=False)
+    is_paused = Column(Boolean, default=True)
     email_alerts_enabled = Column(Boolean, default=True)
 
     rank_check_frequency = Column(String, default="weekly")
@@ -105,8 +105,8 @@ class BillingHistory(Base):
 class ProjectMember(Base):
     __tablename__ = "project_members"
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, ForeignKey("projects.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.EDITOR)
 
     project = relationship("Project", back_populates="members")
@@ -157,17 +157,22 @@ class Keyword(Base):
 class KeywordRanking(Base):
     __tablename__ = "keyword_rankings"
     id = Column(Integer, primary_key=True)
-    keyword_id = Column(Integer, ForeignKey("keywords.id"))
-    search_engine = Column(Enum(SearchEngine))
-    region = Column(String)  # e.g. "UAE"
-    device = Column(Enum(DeviceType), default=DeviceType.DESKTOP)
+    keyword_id = Column(Integer, ForeignKey("keywords.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+
+    search_engine = Column(Enum(SearchEngine), nullable=False, default=SearchEngine.GOOGLE)
+    region = Column(String, nullable=False, default="global")  
+    device = Column(Enum(DeviceType), default=DeviceType.DESKTOP, nullable=False)
+    
     position = Column(Integer)
     title = Column(String)
     url = Column(String)
     snippet = Column(Text)
+    
     checked_at = Column(DateTime, server_default=func.now())
 
     keyword = relationship("Keyword", back_populates="rankings")
+    project = relationship("Project")
 
 
 # -------------------------------

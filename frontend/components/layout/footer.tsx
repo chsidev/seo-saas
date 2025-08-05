@@ -48,7 +48,7 @@ export default function Footer() {
               <span className="text-xl font-bold">SEO Pro</span>
             </div>
             <p className="text-gray-400 max-w-md">
-              The all-in-one SEO platform that helps agencies and businesses track rankings, 
+              The all-in-one SEO platform that helps agencies and businesses track , 
               audit websites, and generate professional reports.
             </p>
             <div className="space-y-2">

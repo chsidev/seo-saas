@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from 'next-themes';
@@ -20,6 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -56,20 +67,14 @@ export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
+  const [isDeleting, setIsDeleting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('viewer');
-  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
-
   const isRTL = i18n.language === 'ar';
 
   // Fetch team data
-  const { data: teamMembers, mutate: mutateTeam } = useSWR('/users/team', fetcher);
-
+  const [timezone, setTimezone] = useState('utc');
   const [profileData, setProfileData] = useState({
-    // firstName: user?.firstName || '',
-    // lastName: user?.lastName || '',
     name: user?.name || '',
     email: user?.email || '',
     currentPassword: '',
@@ -85,6 +90,16 @@ export default function SettingsPage() {
     emailSummary: true,
   });
 
+  useEffect(() => {
+    if (user) {
+      setProfileData((prev) => ({
+        ...prev,
+        name: user.name || '',
+        email: user.email || '',
+      }));
+    }
+  }, [user]);
+
   const handleLanguageChange = (lang: string) => {
     i18n.changeLanguage(lang);
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
@@ -97,18 +112,21 @@ export default function SettingsPage() {
     toast.success('Theme updated successfully');
   };
 
-  const handleProfileUpdate = () => {
+  const handleProfileUpdate = async () => {
     try {
-      api.put('/users/update', {
-        // firstName: profileData.firstName,
-        // lastName: profileData.lastName,
+      await api.patch('/users/update', {
         name: profileData.name,
-        email: profileData.email,
       });
       toast.success('Profile updated successfully');
     } catch (error) {
       toast.error('Failed to update profile');
-    }
+  }
+    setProfileData(prev => ({
+      ...prev,
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    }));
   };
 
   const handlePasswordChange = async () => {
@@ -134,36 +152,31 @@ export default function SettingsPage() {
     }
   };
 
-  const handleInviteTeamMember = async () => {
-    if (!inviteEmail) {
-      toast.error('Please enter an email address');
-      return;
-    }
-
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
     try {
-      await api.post('/users/invite', {
-        email: inviteEmail,
-        role: inviteRole,
-      });
-      mutateTeam(); // Refresh team list
-      setInviteEmail('');
-      setInviteRole('viewer');
-      setIsInviteDialogOpen(false);
-      toast.success('Team member invited successfully');
-    } catch (error) {
-      toast.error('Failed to invite team member');
+      await api.delete('/users/delete-account');
+      toast.success('Account deleted successfully');
+      logout();
+      router.push('/');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || 'Failed to delete account';
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const handleRemoveTeamMember = async (id: number) => {
-    try {
-      await api.delete(`/users/team/${id}`);
-      mutateTeam(); // Refresh team list
-      toast.success('Team member removed');
-    } catch (error) {
-      toast.error('Failed to remove team member');
-    }
-  };
+  if (!user) {
+    return (
+      <ProtectedRoute>
+        <Navbar />
+        <div className="flex justify-center items-center h-screen">
+          <div className="text-muted-foreground">Loading profile...</div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>
@@ -182,15 +195,15 @@ export default function SettingsPage() {
           </div>
 
           <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="profile" className="flex items-center">
                 <User className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
                 {t('settings.profile')}
               </TabsTrigger>
-              <TabsTrigger value="team" className="flex items-center">
+              {/* <TabsTrigger value="team" className="flex items-center">
                 <Users className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
                 {t('settings.team')}
-              </TabsTrigger>
+              </TabsTrigger> */}
               <TabsTrigger value="notifications" className="flex items-center">
                 <Bell className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
                 {t('settings.notifications')}
@@ -211,26 +224,6 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">{t('auth.firstName')}</Label>
-                      <Input
-                        id="firstName"
-                        value={profileData.firstName}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
-                        dir={isRTL ? 'rtl' : 'ltr'}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">{t('auth.lastName')}</Label>
-                      <Input
-                        id="lastName"
-                        value={profileData.lastName}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
-                        dir={isRTL ? 'rtl' : 'ltr'}
-                      />
-                    </div>
-                  </div> */}
                   <div className="space-y-2">
                     <Label htmlFor="name">{t('auth.name')}</Label>
                     <Input
@@ -245,7 +238,8 @@ export default function SettingsPage() {
                     <Label htmlFor="email">{t('auth.email')}</Label>
                     <Input
                       id="email"
-                      disabled
+                      readOnly
+                      className="bg-muted/50 cursor-not-allowed"
                       type="email"
                       value={profileData.email}
                       onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
@@ -335,131 +329,68 @@ export default function SettingsPage() {
                   </Button>
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            {/* Team Tab */}
-            <TabsContent value="team" className="space-y-6">
-              <Card>
+              <Card className="border-destructive/50">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>{t('settings.team')}</CardTitle>
-                      <CardDescription>
-                        Manage team members and their permissions
-                      </CardDescription>
-                    </div>
-                    <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button>
-                          <Plus className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-                          Invite Member
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Invite Team Member</DialogTitle>
-                          <DialogDescription>
-                            Send an invitation to a new team member
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="inviteEmail">Email Address</Label>
-                            <Input
-                              id="inviteEmail"
-                              type="email"
-                              placeholder="colleague@example.com"
-                              value={inviteEmail}
-                              onChange={(e) => setInviteEmail(e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="inviteRole">Role</Label>
-                            <Select value={inviteRole} onValueChange={setInviteRole}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="viewer">Viewer</SelectItem>
-                                <SelectItem value="editor">Editor</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
-                            Cancel
-                          </Button>
-                          <Button onClick={handleInviteTeamMember}>
-                            Send Invitation
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
+                  <CardTitle className="text-destructive">Delete Account</CardTitle>
+                  <CardDescription>
+                    Permanently delete your account and all associated data. This action cannot be undone.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {/* Current User */}
-                    <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center">
-                          {/* {user?.firstName?.[0]}{user?.lastName?.[0]} */}
-                          {user?.name?.[0]}
-                        </div>
-                        <div>
-                          {/* <p className="font-medium">{user?.firstName} {user?.lastName}</p> */}
-                          <p className="font-medium">{user?.name} </p>
-                          <p className="text-sm text-muted-foreground">{user?.email}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium px-2 py-1 bg-primary text-primary-foreground rounded">
-                          Owner
-                        </span>
-                        <span className="text-xs text-muted-foreground">(You)</span>
-                      </div>
+                    <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                      <h4 className="font-medium text-destructive mb-2">Warning</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Deleting your account will permanently remove:
+                      </p>
+                      <ul className="text-sm text-muted-foreground mt-2 space-y-1">
+                        <li>• All your projects and keywords</li>
+                        <li>• SEO audit history and reports</li>
+                        <li>• Team collaborations and invitations</li>
+                        <li>• Billing history and subscription data</li>
+                        <li>• All personal settings and preferences</li>
+                      </ul>
                     </div>
-
-                    {/* Team Members */}
-                    {(teamMembers || []).map((member: any) => (
-                      <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-secondary text-secondary-foreground rounded-full flex items-center justify-center">
-                            {member.name[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-medium">{member.name}</p>
-                            <p className="text-sm text-muted-foreground">{member.email}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`text-sm px-2 py-1 rounded ${
-                            member.status === 'active' 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                          }`}>
-                            {member.status}
-                          </span>
-                          <span className="text-sm px-2 py-1 bg-secondary text-secondary-foreground rounded">
-                            {member.role}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveTeamMember(member.id)}
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={isDeleting}>
+                          <Trash2 className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                          Delete My Account
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete your account
+                            and remove all your data from our servers, including all projects, keywords,
+                            audit history, and billing information.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDeleteAccount}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={isDeleting}
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                            {isDeleting ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                                Deleting...
+                              </>
+                            ) : (
+                              'Yes, delete my account'
+                            )}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
-
             {/* Notifications Tab */}
             <TabsContent value="notifications" className="space-y-6">
               <Card>
@@ -622,7 +553,8 @@ export default function SettingsPage() {
                         Set your local timezone for accurate reporting
                       </p>
                     </div>
-                    <Select defaultValue="utc">
+                    {/* <Select defaultValue="utc"> */}
+                    <Select value={timezone} onValueChange={setTimezone}>
                       <SelectTrigger className="w-52">
                         <SelectValue />
                       </SelectTrigger>

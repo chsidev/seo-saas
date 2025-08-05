@@ -1,8 +1,9 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, projects, keywords, billing, myfatoorah, admin, team_invite, members
+from app.routers import auth, projects, keywords, billing, myfatoorah, admin, team_invite, members, users, rankings, scraper
 from app.database import Base, engine
+from app.scrapers.google import GoogleScraper
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -26,6 +27,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(scraper.router, prefix="/api", tags=["Scraper"])
+app.include_router(rankings.router, prefix="/api", tags=["Keyword Rankings"])
+app.include_router(users.router, prefix="/api", tags=["Users"])
 app.include_router(members.router, prefix="/api", tags=["ProjectMembers"])
 app.include_router(team_invite.router, prefix="/api")
 app.include_router(keywords.router, prefix="/api")
@@ -45,3 +49,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={"detail": exc.errors()},
     )
+
+if __name__ == "__main__":
+    scraper = GoogleScraper("best seo tools", region="us", device="desktop")
+    data = scraper.scrape()
+    for d in data:
+        print(d)

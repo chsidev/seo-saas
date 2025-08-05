@@ -54,6 +54,16 @@ services:
     networks:
       - app-net
 
+  celery-worker:
+    build:
+     context: ./backend
+    command: celery -A app.celery_worker.celery_app worker --loglevel=info
+    depends_on:
+      - backend
+      - redis
+    volumes:
+      - ./backend:/app
+
 volumes:
   pgdata:
 

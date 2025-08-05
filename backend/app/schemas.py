@@ -1,7 +1,7 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional,  Literal
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional,  Literal, List
 from datetime import datetime
-from app.models import SearchEngine, UserRole
+from app.models import SearchEngine, UserRole, DeviceType
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -12,6 +12,20 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class UserOut(BaseModel):
+    id: int
+    email: EmailStr
+    name: str
+
+    class Config:
+        orm_mode = True
+
+class UserUpdate(BaseModel):
+    name: str
+
+class ChangePassword(BaseModel):
+    currentPassword: str
+    newPassword: str
 
 class ProjectCreate(BaseModel):
     name: str
@@ -28,6 +42,22 @@ class ProjectOut(BaseModel):
     id: int
     name: str
     
+    class Config:
+        from_attributes = True
+
+class ProjectDetailOut(BaseModel):
+    id: int
+    name: str
+    url: str
+    description: str | None
+    is_paused: bool
+    language: str | None
+    target_region: str | None
+    search_engine: str | None
+    created_at: datetime
+    updated_at: datetime
+    role: str
+
     class Config:
         from_attributes = True
 
@@ -90,14 +120,6 @@ class AcceptInviteRequest(BaseModel):
 class ProjectMemberUpdate(BaseModel):
     role: UserRole  
 
-class UserOut(BaseModel):
-    id: int
-    email: EmailStr
-    name: str
-
-    class Config:
-        orm_mode = True
-
 class ProjectMemberOut(BaseModel):
     id: int
     role: UserRole
@@ -109,3 +131,29 @@ class ProjectMemberOut(BaseModel):
 class ProjectOutWithMembers(ProjectOut):
     members: list[ProjectMemberOut]
 
+class KeywordRankingBase(BaseModel):
+    keyword_id: int
+    project_id: int
+    search_engine: SearchEngine
+    region: str = "global"
+    device: DeviceType
+    position: int
+    title: Optional[str] = None
+    url: Optional[str] = None
+    snippet: Optional[str] = None
+
+class KeywordRankingCreate(KeywordRankingBase):
+    pass
+
+class KeywordRankingOut(KeywordRankingBase):
+    id: int
+    checked_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class ScrapeRequest(BaseModel):
+    search_engines: List[SearchEngine] = Field(..., example=["google", "bing"] )
+    region: str = Field(..., example="US")
+    device: DeviceType = Field(..., example="desktop")
